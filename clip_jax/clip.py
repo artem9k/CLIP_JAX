@@ -234,7 +234,8 @@ def load(name: str, device: Union[str, torch.device] = "cpu", jit=True):
         A torchvision transform that converts a PIL image into a tensor that the returned model can take as its input
     """
 
-    rn = "RN" in name
+    # return state if resnet50
+    rn = "RN50" in name
 
     if name in _MODELS:
         model_path = _download(_MODELS[name])
@@ -264,7 +265,6 @@ def load(name: str, device: Union[str, torch.device] = "cpu", jit=True):
         return clip.encode_text(text)
 
     rng_key = jax.random.PRNGKey(42)
-    # todo make this optional if rn50. We only need state because of bn layers
     transformed = hk.transform_with_state(clip_jax)
     jax_params, state = transformed.init(rng=rng_key, image=jnp.zeros((1, 3, 224, 224)), text=jnp.zeros((1, 77), dtype=jnp.int16))
     # load transformer weights
@@ -275,12 +275,13 @@ def load(name: str, device: Union[str, torch.device] = "cpu", jit=True):
     # load rn50 weights (todo integrate into convert_params)
     if rn:
         load_weights_rn50(state_dict, jax_params)
-    
-    image_fn = hk.without_apply_rng(hk.transform_with_state(vit_jax)).apply
-    text_fn = hk.without_apply_rng(hk.transform_with_state(text_jax)).apply
-
-    return image_fn, text_fn, jax_params, _transform(clip_params["image_resolution"]), state
-
+        image_fn = hk.without_apply_rng(hk.transform_with_state(vit_jax)).apply
+        text_fn = hk.without_apply_rng(hk.transform_with_state(text_jax)).apply
+        return image_fn, text_fn, jax_params, _transform(clip_params["image_resolution"]), state
+    else:
+        image_fn = hk.without_apply_rng(hk.transform(vit_jax)).apply
+        text_fn = hk.without_apply_rng(hk.transform(text_jax)).apply
+        return image_fn, text_fn, jax_params, _transform(clip_params["image_resolution"])
 
 def tokenize(texts: Union[str, List[str]], context_length: int = 77) -> torch.LongTensor:
     """

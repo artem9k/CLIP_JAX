@@ -28,6 +28,23 @@ image_embed = image_fn(jax_params, image)
 text_embed = text_fn(jax_params, text)
 ```
 
+## Usage Example (RN50)
+
+```python
+import numpy as np
+from PIL import Image
+
+import clip_jax
+
+image_fn, text_fn, jax_params, jax_preprocess, state = clip_jax.load('RN50', "cpu")
+
+image = np.expand_dims(jax_preprocess(Image.open("CLIP.png")), 0)
+text = clip_jax.tokenize(["a diagram", "a dog", "a cat"])
+
+image_embed, state = image_fn(jax_params, state, image)
+text_embed, state  = text_fn(jax_params, state, text)
+```
+
 ## TPU performance
 
 On a TPU v3-8 with Jax tpu-vm alpha (`test/tpu_bench.py`):
